@@ -1,0 +1,66 @@
+name: srp
+
+services:
+  mysql:
+    image: mysql:8.0
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --log-bin-trust-function-creators=1
+      - --sql-mode=NO_ENGINE_SUBSTITUTION
+    environment:
+      MYSQL_DATABASE: srp
+      MYSQL_USER: srp
+      MYSQL_PASSWORD: srp
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3307:3306"
+    volumes:
+      - dbdata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6380:6379"]
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"   # UI
+      - "1025:1025"   # SMTP
+
+  php-apache:
+    build:
+      context: ./ops/docker/php-apache
+    working_dir: /var/www/html
+    volumes:
+      - ./backend:/var/www/html
+      - ./ops/docker/php-apache/vhost.conf:/etc/apache2/sites-available/000-default.conf:ro
+    environment:
+      APACHE_DOCUMENT_ROOT: /var/www/html/public
+      APP_ENV: local
+    ports:
+      - "8080:80"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  node:
+    build:
+      context: ./ops/docker/node
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+    environment:
+      NEXT_PUBLIC_API_BASE: "http://localhost:8080/api"
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+    ports:
+      - "3000:3000"
+    command: "npm run dev"
+
+volumes:
+  dbdata:

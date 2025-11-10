@@ -1,0 +1,11 @@
+backend/vendor/
+frontend/node_modules/
+backend/.env
+frontend/.env.local
+.env
+.env.*
+.DS_Store
+.vscode/
+.idea/
+frontend/.next/
+frontend/out/
